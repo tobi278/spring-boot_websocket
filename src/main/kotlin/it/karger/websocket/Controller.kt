@@ -17,7 +17,9 @@ class Controller {
     @Throws(Exception::class)
     fun send(message: Message) {
         val time = SimpleDateFormat("HH:mm").format(Date())
-        this.template!!.convertAndSend("/topic/messages", OutputMessage(message.from, message.text, time))
+        val outputMessage = OutputMessage(message.from, message.text, time)
+        println(outputMessage)
+        this.template!!.convertAndSend("/topic/messages", outputMessage)
     }
 }
 

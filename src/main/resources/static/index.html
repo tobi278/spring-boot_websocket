@@ -1,8 +1,8 @@
 <html>
 <head>
     <title>Chat WebSocket</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.0/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@5.0.0/bundles/stomp.umd.min.js"></script>
     <script type="text/javascript">
         let stompClient = null;
 
@@ -15,36 +15,54 @@
         }
 
         function connect() {
-            let socket = new SockJS('/chat');
-            stompClient = Stomp.over(socket);
-            stompClient.connect({}, function(frame) {
+            stompClient = new StompJs.Client({
+                brokerURL: 'ws://localhost:8080/chat',
+                connectHeaders: {},
+                debug: function (str) {
+                    console.log(str);
+                },
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+            });
+
+            stompClient.onConnect = function (frame) {
                 setConnected(true);
                 console.log('Connected: ' + frame);
                 stompClient.subscribe('/topic/messages', function(messageOutput) {
                     showMessageOutput(JSON.parse(messageOutput.body));
-                });
-            });
+                });            };
+
+            stompClient.onStompError = function (frame) {
+                console.log('Broker reported error: ' + frame.headers['message']);
+                console.log('Additional details: ' + frame.body);
+            };
+
+            stompClient.activate();
         }
 
         function disconnect() {
             if(stompClient != null) {
-                stompClient.disconnect();
+                stompClient.deactivate();
             }
             setConnected(false);
             console.log("Disconnected");
         }
 
         function sendMessage() {
-            var from = document.getElementById('from').value;
-            var text = document.getElementById('text').value;
-            stompClient.send("/app/chat", {},
-                JSON.stringify({'from':from, 'text':text}));
+            const from = document.getElementById('from').value;
+            const text = document.getElementById('text').value;
+
+            stompClient.publish({
+                destination: '/app/chat',
+                body: JSON.stringify({'from':from, 'text':text}),
+                skipContentLengthHeader: true,
+            });
         }
 
         function showMessageOutput(messageOutput) {
-            var response = document.getElementById('response');
-            var p = document.createElement('p');
-            p.style.wordWrap = 'break-word';
+            const response = document.getElementById('response');
+            const p = document.createElement('p');
             p.appendChild(document.createTextNode(messageOutput.from + ": "
                 + messageOutput.text + " (" + messageOutput.time + ")"));
             response.appendChild(p);
